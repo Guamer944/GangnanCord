@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GangnamCord</title>
+    <!-- Use a modern, clean font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for the reply icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* CSS Variables for easy theme changes */
+        :root {
+            --bg-color-primary: #1e1f22;
+            --bg-color-secondary: #2b2d31;
+            --bg-color-tertiary: #313338;
+            --text-color-primary: #f2f3f5;
+            --text-color-secondary: #949ba4;
+            --highlight-color: #5865f2;
+            --highlight-hover: #4752c4;
+            --border-color: #1a1a1c;
+            --error-color: #f23f43;
+            --reply-highlight-color: rgba(255, 165, 0, 0.15); /* Transparent orange */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color-primary);
+            color: var(--text-color-primary);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden; /* Prevents body scroll bars */
+        }
+        
+        /* New CSS to hide the scrollbar but keep scrolling functionality */
+        /* For WebKit browsers (Chrome, Safari) */
+        .sidebar, #chat-window, .right-sidebar {
+            -ms-overflow-style: none;  /* For Internet Explorer and Edge */
+            scrollbar-width: none;  /* For Firefox */
+        }
+        
+        .sidebar::-webkit-scrollbar, #chat-window::-webkit-scrollbar, .right-sidebar::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            background: transparent;
+        }
+
+        .sidebar {
+            width: 240px;
+            background-color: var(--bg-color-secondary);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto; /* Keep scrolling on this panel */
+        }
+        
+        .sidebar-search {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: var(--bg-color-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-color-primary);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .sidebar-search::placeholder {
+            color: var(--text-color-secondary);
+        }
+
+        .sidebar h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: var(--text-color-secondary);
+        }
+
+        .channel-list, .dm-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .channel-list li, .dm-list li {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 600;
+        }
+        
+        .channel-list li.active, .dm-list li.active {
+            background-color: var(--highlight-color);
+            color: var(--text-color-primary);
+        }
+
+        .channel-list li:hover:not(.active), .dm-list li:hover:not(.active) {
+            background-color: var(--bg-color-tertiary);
+        }
+        
+        .dm-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0.5rem 1rem;
+            font-weight: 400;
+        }
+        
+        .dm-list .user-pfp {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-color-primary);
+            flex-shrink: 0;
+        }
+        
+        .dm-list .username {
+            font-weight: 600;
+            color: var(--text-color-secondary);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-color-tertiary);
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-color-tertiary);
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        
+        #reset-app-btn-header {
+            background-color: var(--error-color);
+            color: var(--text-color-primary);
+            font-weight: 700;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        
+        #reset-app-btn-header:hover {
+            background-color: #c22b2f;
+            transform: translateY(-1px);
+        }
+
+        #chat-window {
+            flex-grow: 1;
+            padding: 1rem 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Styles for profile pictures and message layout */
+        .message-wrapper {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            position: relative;
+        }
+        
+        .profile-picture {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-color-primary);
+            flex-shrink: 0;
+            text-transform: uppercase;
+        }
+        
+        .message {
+            background-color: var(--bg-color-secondary);
+            padding: 1rem;
+            border-radius: 12px;
+            max-width: 85%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        /* Highlight for replies sent to the current user */
+        .message.highlight-for-me {
+            background-color: var(--reply-highlight-color);
+        }
+
+        /* New styles for a more subtle reply button */
+        .reply-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background-color: rgba(43, 45, 49, 0.7); /* Semi-transparent background */
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            color: var(--text-color-primary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .reply-btn:hover {
+            background-color: rgba(43, 45, 49, 0.9);
+            transform: scale(1.05);
+        }
+
+        .message-wrapper:hover .reply-btn {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* Reply reference block */
+        .reply-reference {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-color-secondary);
+            border-left: 2px solid var(--highlight-color);
+            padding-left: 0.5rem;
+            line-height: 1.2;
+        }
+        
+        .reply-reference .reply-icon {
+            font-size: 0.8em;
+            margin-right: 0.5rem;
+        }
+        
+        .reply-reference .reply-to-name {
+            font-weight: 700;
+        }
+
+        .message .user-info {
+            font-weight: 700;
+            color: var(--highlight-color);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .message .content {
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--text-color-primary);
+        }
+
+        #message-form {
+            position: relative; /* Add position relative to contain the emoji picker */
+            display: flex;
+            flex-direction: column;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-color-tertiary);
+            flex-shrink: 0;
+        }
+        
+        #reply-status {
+            background-color: var(--bg-color-secondary);
+            border: 1px solid var(--highlight-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #reply-status span {
+            color: var(--text-color-primary);
+            font-size: 0.9rem;
+        }
+        
+        #cancel-reply-btn {
+            background: none;
+            border: none;
+            color: var(--text-color-secondary);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        
+        #cancel-reply-btn:hover {
+            color: var(--error-color);
+        }
+        
+        .message-input-container {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        /* New emoji button styling */
+        #emoji-picker-btn {
+            background-color: #55575c;
+            color: var(--text-color-primary);
+            border: none;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #emoji-picker-btn:hover {
+            background-color: var(--highlight-color);
+            color: var(--text-color-primary);
+            transform: translateY(-1px);
+        }
+
+        #message-input {
+            flex-grow: 1;
+            background-color: var(--bg-color-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-color-primary);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #message-input:focus {
+            outline: none;
+            border-color: var(--highlight-color);
+            box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.5);
+        }
+
+        #message-form button[type="submit"] {
+            background-color: var(--highlight-color);
+            color: var(--text-color-primary);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        #message-form button[type="submit"]:hover {
+            background-color: var(--highlight-hover);
+            transform: translateY(-1px);
+        }
+
+        #username-modal, #password-modal, #reset-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        /* Updated emoji picker styling for a bigger size */
+        #emoji-picker {
+            position: absolute;
+            bottom: 110px; /* Adjust this to place it above the input field */
+            right: 1.5rem;
+            width: 350px; /* Made it wider */
+            height: 400px; /* Made it taller */
+            background-color: var(--bg-color-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column; /* Use column layout for search bar */
+            z-index: 99;
+        }
+        
+        /* Style for the search input inside the emoji picker */
+        #emoji-search-input {
+            width: 100%;
+            background-color: var(--bg-color-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-color-primary);
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem; /* Add some space below the search bar */
+        }
+
+        #emoji-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            overflow-y: auto;
+            flex-grow: 1; /* Allow the grid to take up the remaining space */
+        }
+
+        #emoji-grid button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: transform 0.1s;
+            flex: 0 0 16.66%; /* 6 emojis per row */
+            text-align: center;
+        }
+        
+        #emoji-grid button:hover {
+            transform: scale(1.2);
+        }
+
+        .modal-content {
+            background-color: var(--bg-color-tertiary);
+            padding: 2.5rem 3rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            width: 300px;
+        }
+        
+        .modal-content h2 {
+            margin-top: 0;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .modal-content input {
+            background-color: var(--bg-color-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-color-primary);
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+            width: 100%;
+        }
+
+        .modal-content button {
+            width: 100%;
+            background-color: var(--highlight-color);
+            color: var(--text-color-primary);
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: 700;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        
+        .modal-content button:hover {
+            background-color: var(--highlight-hover);
+            transform: translateY(-2px);
+        }
+        
+        #username-error, #password-error {
+            color: var(--error-color);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            height: 1.2em; /* Reserve space for the error message */
+        }
+        
+        #reset-modal .modal-content h2 {
+            font-size: 1.5rem;
+        }
+        
+        #reset-modal .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        #reset-modal .modal-buttons button {
+            width: 50%;
+        }
+        
+        #reset-confirm-btn {
+            background-color: var(--error-color);
+        }
+        
+        #reset-confirm-btn:hover {
+            background-color: #c22b2f;
+        }
+        
+        #reset-cancel-btn {
+            background-color: var(--bg-color-secondary);
+            color: var(--text-color-secondary);
+        }
+
+        #reset-cancel-btn:hover {
+            background-color: var(--bg-color-primary);
+            transform: translateY(-2px);
+        }
+
+        /* Responsive design for mobile devices */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                max-height: 60px;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0 1rem;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .sidebar h2 {
+                display: none;
+            }
+            .main-content {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Username input modal -->
+    <div id="username-modal">
+        <div class="modal-content">
+            <h2>Enter a Username</h2>
+            <input type="text" id="username-input" placeholder="Your name" autocomplete="off">
+            <div id="username-error"></div>
+            <button id="username-submit">Start Chatting</button>
+        </div>
+    </div>
+    
+    <!-- Password modal for the reset function -->
+    <div id="password-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Enter Password</h2>
+            <input type="password" id="password-input" placeholder="Password" autocomplete="off">
+            <div id="password-error"></div>
+            <button id="password-submit">Submit</button>
+        </div>
+    </div>
+    
+    <!-- Confirmation modal for the reset function -->
+    <div id="reset-modal" style="display: none;">
+        <div class="modal-content">
+            <h2>Warning!</h2>
+            <p>This will permanently delete all chat messages and user names. Are you sure you want to proceed?</p>
+            <div class="modal-buttons">
+                <button id="reset-confirm-btn">Yes, Reset</button>
+                <button id="reset-cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main application layout -->
+    <div class="sidebar">
+        <input type="text" id="sidebar-search" class="sidebar-search" placeholder="Search...">
+        
+        <h2>GROUPS:</h2>
+        <ul id="group-list" class="channel-list">
+            <li id="general-channel" class="active"># general</li>
+        </ul>
+        
+        <h2>DMS:</h2>
+        <ul id="dm-list" class="dm-list">
+            <!-- Online users for DM will be dynamically added here -->
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <header>
+            <h1 id="current-channel-name"># general</h1>
+            <button id="reset-app-btn-header">Reset App</button>
+        </header>
+
+        <div id="chat-window">
+            <!-- Messages will be displayed here -->
+        </div>
+        
+        <!-- The emoji picker popup -->
+        <div id="emoji-picker" style="display: none;">
+            <input type="text" id="emoji-search-input" placeholder="Search emojis..." />
+            <div id="emoji-grid">
+                <!-- Emojis will be dynamically added here -->
+            </div>
+        </div>
+
+        <form id="message-form">
+            <div id="reply-status" style="display: none;">
+                <span>Replying to: <span id="reply-to-name"></span></span>
+                <button type="button" id="cancel-reply-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="message-input-container">
+                <button type="button" id="emoji-picker-btn">😊</button>
+                <input type="text" id="message-input" placeholder="Message #general" autocomplete="off">
+                <button type="submit">Send</button>
+            </div>
+        </form>
+    </div>
+
+    <script type="module">
+        // Import the necessary functions from the Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            query, 
+            where, 
+            onSnapshot, 
+            addDoc, 
+            doc, 
+            setDoc,
+            getDoc,
+            updateDoc, 
+            serverTimestamp,
+            getDocs,
+            deleteDoc,
+        } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-auth.js";
+        
+        // --- Firebase Configuration and Initialization ---
+        // These global variables are provided by the Canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDScWspAOEkPFSXj2DBzVQNRYIPyDUaTJ0",
+            authDomain: "gangnamcord.firebaseapp.com",
+            projectId: "gangnamcord",
+            storageBucket: "gangnamcord.firebasestorage.app",
+            messagingSenderId: "830528280139",
+            appId: "1:830528280139:web:e8155737379a86b7a5dfce"
+        };
+        
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- DOM Elements ---
+        const sidebarSearchInput = document.getElementById('sidebar-search');
+        const groupList = document.getElementById('group-list');
+        const dmList = document.getElementById('dm-list');
+        const chatWindow = document.getElementById('chat-window');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const usernameModal = document.getElementById('username-modal');
+        const usernameInput = document.getElementById('username-input');
+        const usernameSubmitBtn = document.getElementById('username-submit');
+        const usernameError = document.getElementById('username-error');
+        const generalChannel = document.getElementById('general-channel');
+        const currentChannelName = document.getElementById('current-channel-name');
+        const resetAppBtnHeader = document.getElementById('reset-app-btn-header');
+        const passwordModal = document.getElementById('password-modal');
+        const passwordInput = document.getElementById('password-input');
+        const passwordSubmitBtn = document.getElementById('password-submit');
+        const passwordError = document.getElementById('password-error');
+        const resetModal = document.getElementById('reset-modal');
+        const resetConfirmBtn = document.getElementById('reset-confirm-btn');
+        const resetCancelBtn = document.getElementById('reset-cancel-btn');
+        const replyStatus = document.getElementById('reply-status');
+        const replyToNameSpan = document.getElementById('reply-to-name');
+        const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+        const emojiPickerBtn = document.getElementById('emoji-picker-btn');
+        const emojiPicker = document.getElementById('emoji-picker');
+        const emojiSearchInput = document.getElementById('emoji-search-input');
+        const emojiGrid = document.getElementById('emoji-grid');
+
+        // --- Global State Variables ---
+        const RESET_PASSWORD = "saojosedormindo";
+        let currentUserId = null;
+        let currentUserName = null;
+        let currentChannel = 'general';
+        let onlineUsersListener = null;
+        let messagesListener = null;
+        let pingInterval = null;
+        let replyingTo = { messageId: null, senderName: null, replyToSenderId: null };
+        const initialLoadTimestamp = Date.now();
+        
+        // Cache for all online user data
+        let allOnlineUsers = [];
+
+        // Comprehensive list of emojis with searchable keywords
+        const emojis = [
+            { emoji: '😀', keywords: ['grinning', 'face', 'smile'] },
+            { emoji: '😁', keywords: ['grinning', 'eyes', 'face', 'smile'] },
+            { emoji: '😂', keywords: ['face', 'tears', 'joy', 'laughing'] },
+            { emoji: '🤣', keywords: ['rolling', 'laughing', 'floor'] },
+            { emoji: '😃', keywords: ['grinning', 'big', 'smile', 'eyes'] },
+            { emoji: '😄', keywords: ['grinning', 'smile', 'sweat'] },
+            { emoji: '😅', keywords: ['grinning', 'face', 'smile', 'sweat'] },
+            { emoji: '😆', keywords: ['laughing', 'grin', 'face'] },
+            { emoji: '😉', keywords: ['winking', 'face', 'wink'] },
+            { emoji: '😊', keywords: ['blushing', 'smiling', 'face', 'happy'] },
+            { emoji: '😋', keywords: ['savoring', 'food', 'yummy', 'tongue'] },
+            { emoji: '😎', keywords: ['sunglasses', 'cool', 'face'] },
+            { emoji: '😍', keywords: ['heart', 'eyes', 'love', 'in love'] },
+            { emoji: '😘', keywords: ['kissing', 'face', 'kiss'] },
+            { emoji: '🥰', keywords: ['hearts', 'face', 'love', 'smiling'] },
+            { emoji: '😗', keywords: ['kissing', 'puckered', 'face'] },
+            { emoji: '😙', keywords: ['kissing', 'smiling', 'face'] },
+            { emoji: '😚', keywords: ['kissing', 'closed', 'eyes', 'face'] },
+            { emoji: '🙂', keywords: ['slight', 'smile', 'face'] },
+            { emoji: '🤗', keywords: ['hugging', 'face', 'hug'] },
+            { emoji: '🤩', keywords: ['star', 'struck', 'eyes', 'wow'] },
+            { emoji: '🤔', keywords: ['thinking', 'face', 'ponder'] },
+            { emoji: '🤨', keywords: ['raised', 'eyebrow', 'skeptical', 'face'] },
+            { emoji: '😐', keywords: ['neutral', 'face', 'meh'] },
+            { emoji: '😑', keywords: ['expressionless', 'face'] },
+            { emoji: '😶', keywords: ['mouth', 'face', 'quiet'] },
+            { emoji: '😏', keywords: ['smirking', 'face', 'smirk'] },
+            { emoji: '😒', keywords: ['unamused', 'face', 'disappointed'] },
+            { emoji: '🙄', keywords: ['rolling', 'eyes', 'eyeroll'] },
+            { emoji: '😬', keywords: ['grimacing', 'face', 'grimace'] },
+            { emoji: '🤥', keywords: ['liar', 'face', 'pinocchio'] },
+            { emoji: '😌', keywords: ['relieved', 'face', 'calm'] },
+            { emoji: '😔', keywords: ['pensive', 'face', 'sad'] },
+            { emoji: '😪', keywords: ['sleepy', 'face', 'tired'] },
+            { emoji: '🤤', keywords: ['drooling', 'face', 'hungry'] },
+            { emoji: '😴', keywords: ['sleeping', 'face', 'zzz'] },
+            { emoji: '😷', keywords: ['mask', 'face', 'sick'] },
+            { emoji: '�', keywords: ['thermometer', 'face', 'fever'] },
+            { emoji: '🤕', keywords: ['bandage', 'face', 'hurt'] },
+            { emoji: '🤢', keywords: ['nauseated', 'face', 'sick'] },
+            { emoji: '🤮', keywords: ['vomiting', 'face', 'puke'] },
+            { emoji: '🤧', keywords: ['sneezing', 'face', 'sneeze'] },
+            { emoji: '🥵', keywords: ['hot', 'face', 'sweating'] },
+            { emoji: '🥶', keywords: ['cold', 'face', 'frozen'] },
+            { emoji: '😵', keywords: ['dizzy', 'face', 'dizzy'] },
+            { emoji: '🤯', keywords: ['exploding', 'head', 'mindblown'] },
+            { emoji: '🤠', keywords: ['cowboy', 'hat', 'face'] },
+            { emoji: '🥳', keywords: ['partying', 'face', 'celebration'] },
+            { emoji: '🥸', keywords: ['disguised', 'face', 'glasses', 'mustache'] },
+            { emoji: '🥺', keywords: ['pleading', 'face', 'puppy', 'eyes'] },
+            { emoji: '😤', keywords: ['steam', 'from', 'nose', 'face', 'triumph'] },
+            { emoji: '😢', keywords: ['crying', 'face', 'sad'] },
+            { emoji: '😭', keywords: ['loudly', 'crying', 'face', 'sobbing'] },
+            { emoji: '😥', keywords: ['disappointed', 'but', 'relieved', 'face'] },
+            { emoji: '😩', keywords: ['weary', 'face', 'tired'] },
+            { emoji: '😫', keywords: ['tired', 'face', 'weary'] },
+            { emoji: '😨', keywords: ['fearful', 'face', 'scared'] },
+            { emoji: '😱', keywords: ['face', 'scream', 'fear'] },
+            { emoji: '😖', keywords: ['confounded', 'face', 'confused'] },
+            { emoji: '😣', keywords: ['persevering', 'face', 'persevere'] },
+            { emoji: '😠', keywords: ['angry', 'face'] },
+            { emoji: '😡', keywords: ['pouting', 'face', 'rage'] },
+            { emoji: '💀', keywords: ['skull', 'death', 'dead'] },
+            { emoji: '👻', keywords: ['ghost', 'halloween'] },
+            { emoji: '🤖', keywords: ['robot', 'face'] },
+            { emoji: '💩', keywords: ['poop', 'pile', 'crap'] },
+            { emoji: '❤️', keywords: ['heart', 'love', 'red'] },
+            { emoji: '🧡', keywords: ['heart', 'orange'] },
+            { emoji: '💛', keywords: ['heart', 'yellow'] },
+            { emoji: '💚', keywords: ['heart', 'green'] },
+            { emoji: '💙', keywords: ['heart', 'blue'] },
+            { emoji: '💜', keywords: ['heart', 'purple'] },
+            { emoji: '🤎', keywords: ['heart', 'brown'] },
+            { emoji: '🖤', keywords: ['heart', 'black'] },
+            { emoji: '🤍', keywords: ['heart', 'white'] },
+            { emoji: '💯', keywords: ['hundred', 'score', 'perfect'] },
+            { emoji: '👍', keywords: ['thumbs', 'up', 'like', 'good'] },
+            { emoji: '👎', keywords: ['thumbs', 'down', 'dislike', 'bad'] },
+            { emoji: '🎉', keywords: ['party', 'popper', 'celebration'] },
+            { emoji: '🎊', keywords: ['confetti', 'ball', 'celebration'] },
+            { emoji: '🎈', keywords: ['balloon', 'party'] },
+            { emoji: '🎁', keywords: ['gift', 'present', 'box'] },
+            { emoji: '🎂', keywords: ['cake', 'birthday'] },
+            { emoji: '🍕', keywords: ['pizza', 'slice', 'food'] },
+            { emoji: '🍔', keywords: ['hamburger', 'burger', 'food'] },
+            { emoji: '🍟', keywords: ['french', 'fries', 'food'] },
+            { emoji: '🌮', keywords: ['taco', 'food', 'mexican'] },
+            { emoji: '🍣', keywords: ['sushi', 'food', 'japanese'] },
+            { emoji: '☕', keywords: ['coffee', 'tea', 'drink'] },
+            { emoji: '🍺', keywords: ['beer', 'mug', 'drink'] },
+            { emoji: '😂', keywords: ['face', 'tears', 'joy', 'laughing'] },
+            { emoji: '🔥', keywords: ['fire', 'flame', 'hot'] },
+            { emoji: '🚀', keywords: ['rocket', 'ship', 'launch'] },
+            { emoji: '💡', keywords: ['light', 'bulb', 'idea'] },
+            { emoji: '💰', keywords: ['money', 'bag', 'cash'] },
+            { emoji: '💻', keywords: ['laptop', 'computer', 'tech'] },
+            { emoji: '📱', keywords: ['mobile', 'phone', 'smartphone'] },
+            { emoji: '✅', keywords: ['check', 'mark', 'yes', 'correct'] },
+            { emoji: '❌', keywords: ['cross', 'mark', 'no', 'incorrect'] },
+            { emoji: '❓', keywords: ['question', 'mark'] },
+            { emoji: '❗', keywords: ['exclamation', 'mark'] }
+        ];
+
+        // --- Helper Functions ---
+        // A simple hash function to generate a consistent color from a string
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            let color = '#';
+            for (let i = 0; i < 3; i++) {
+                let value = (hash >> (i * 8)) & 0xFF;
+                color += ('00' + value.toString(16)).substr(-2);
+            }
+            return color;
+        }
+
+        // --- User Presence and Authentication ---
+        // This function pings the server to update the user's 'lastSeen' timestamp.
+        async function ping() {
+            if (currentUserId) {
+                try {
+                    const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, currentUserId);
+                    await updateDoc(userDocRef, { lastSeen: serverTimestamp() });
+                } catch (error) {
+                    console.error("Error updating user timestamp:", error);
+                }
+            }
+        }
+
+        // Authentication state listener
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                console.log("User is signed in.");
+                currentUserId = user.uid;
+
+                // Check if user has a username
+                const userDocRef = doc(db, `artifacts/${appId}/public/data/users`, currentUserId);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    currentUserName = userData.username;
+                    usernameModal.style.display = 'none';
+                    startListening();
+                    console.log(`Welcome back, ${currentUserName}!`);
+                } else {
+                    // No username found, show modal to set one
+                    usernameModal.style.display = 'flex';
+                }
+            } else {
+                console.log("User is signed out. Signing in anonymously...");
+                // Handle anonymous sign-in
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            }
+        });
+        
+        // Event listener for setting the username
+        usernameSubmitBtn.addEventListener('click', async () => {
+            const username = usernameInput.value.trim();
+            if (username.length < 4 || username.length > 15) {
+                usernameError.textContent = 'Username must be between 4 and 15 characters.';
+                return;
+            }
+            
+            if (username) {
+                currentUserName = username;
+                try {
+                    // Create a user document in the Firestore database
+                    await setDoc(doc(db, `artifacts/${appId}/public/data/users`, currentUserId), {
+                        username: currentUserName,
+                        lastSeen: serverTimestamp(), // Use a timestamp to track online status
+                    });
+                    usernameModal.style.display = 'none';
+                    startListening();
+                } catch (error) {
+                    console.error("Error setting username:", error);
+                }
+            }
+        });
+
+        // Update user status on window close/reload
+        window.addEventListener('beforeunload', async () => {
+            if (currentUserId) {
+                try {
+                    // Explicitly set `lastSeen` to a very old timestamp to indicate offline status
+                    await updateDoc(doc(db, `artifacts/${appId}/public/data/users`, currentUserId), { lastSeen: new Date(0) });
+                } catch (error) {
+                    console.error("Error updating user status on unload:", error);
+                }
+            }
+        });
+        
+        // --- Reset functionality ---
+        resetAppBtnHeader.addEventListener('click', () => {
+            passwordModal.style.display = 'flex';
+        });
+
+        passwordSubmitBtn.addEventListener('click', () => {
+            if (passwordInput.value === RESET_PASSWORD) {
+                passwordModal.style.display = 'none';
+                passwordError.textContent = '';
+                passwordInput.value = ''; // Clear the password field
+                resetModal.style.display = 'flex';
+            } else {
+                passwordError.textContent = 'Incorrect password.';
+            }
+        });
+
+        resetCancelBtn.addEventListener('click', () => {
+            resetModal.style.display = 'none';
+        });
+
+        resetConfirmBtn.addEventListener('click', async () => {
+            resetModal.style.display = 'none';
+            try {
+                // Unsubscribe all listeners before deleting data
+                if (onlineUsersListener) onlineUsersListener();
+                if (messagesListener) messagesListener();
+                if (pingInterval) clearInterval(pingInterval);
+
+                // Delete all users
+                const usersQuery = query(collection(db, `artifacts/${appId}/public/data/users`));
+                const usersSnapshot = await getDocs(usersQuery);
+                const userDeletions = usersSnapshot.docs.map(d => deleteDoc(d.ref));
+                await Promise.all(userDeletions);
+                console.log("All users deleted.");
+
+                // Delete all messages
+                const messagesQuery = query(collection(db, `artifacts/${appId}/public/data/messages`));
+                const messagesSnapshot = await getDocs(messagesQuery);
+                const messageDeletions = messagesSnapshot.docs.map(d => deleteDoc(d.ref));
+                await Promise.all(messageDeletions);
+                console.log("All messages deleted.");
+
+                // Update a special 'control' document to trigger a reload on all other clients
+                const controlDocRef = doc(db, `artifacts/${appId}/public/data/control`, 'app_state');
+                await setDoc(controlDocRef, {
+                    lastResetTimestamp: serverTimestamp()
+                });
+
+                // Reload the current user's page to start fresh
+                window.location.reload(); 
+            } catch (error) {
+                console.error("Error resetting app:", error);
+            }
+        });
+
+
+        // --- Chat and Message Handling ---
+        function startListening() {
+            // Start the ping interval to keep the user's presence active
+            if (pingInterval) clearInterval(pingInterval);
+            pingInterval = setInterval(ping, 5000); // Ping every 5 seconds
+
+            // Public channel listener
+            generalChannel.addEventListener('click', () => switchChannel('general', '# general'));
+            
+            // Listen for online users and update the DM list on the sidebar
+            if (onlineUsersListener) onlineUsersListener(); // Unsubscribe previous listener
+            
+            const qOnlineUsers = query(collection(db, `artifacts/${appId}/public/data/users`));
+            
+            onlineUsersListener = onSnapshot(qOnlineUsers, snapshot => {
+                allOnlineUsers = []; // Clear the cached list
+                const fiveSecondsAgo = new Date(Date.now() - 5000); 
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    if (user.lastSeen && user.lastSeen.toDate() > fiveSecondsAgo) {
+                        allOnlineUsers.push({ id: doc.id, username: user.username });
+                    }
+                });
+                updateSidebarLists();
+            });
+            
+            // Listen for global reset events
+            const controlDocRef = doc(db, `artifacts/${appId}/public/data/control`, 'app_state');
+            onSnapshot(controlDocRef, (doc) => {
+                if (doc.exists() && doc.data().lastResetTimestamp) {
+                    const resetTimestamp = doc.data().lastResetTimestamp.toDate().getTime();
+                    // If the reset timestamp is newer than our initial load, reload the page
+                    if (resetTimestamp > initialLoadTimestamp) {
+                        console.log("Global reset detected, reloading app...");
+                        window.location.reload();
+                    }
+                }
+            });
+            
+            // Initial message listener for the #general channel
+            listenForMessages('general');
+        }
+        
+        // New function to update the sidebar lists based on a search term
+        function updateSidebarLists(searchTerm = '') {
+            const lowerCaseSearch = searchTerm.toLowerCase();
+
+            // Handle the GROUPS list
+            const groups = [{ id: 'general', name: 'general' }];
+            groupList.innerHTML = '';
+            groups.forEach(group => {
+                if (group.name.toLowerCase().includes(lowerCaseSearch)) {
+                    const groupListItem = document.createElement('li');
+                    groupListItem.id = `${group.id}-channel`;
+                    groupListItem.textContent = `# ${group.name}`;
+                    groupListItem.addEventListener('click', () => switchChannel(group.id, `# ${group.name}`));
+                    groupList.appendChild(groupListItem);
+
+                    if (currentChannel === group.id) {
+                         groupListItem.classList.add('active');
+                    }
+                }
+            });
+
+            // Handle the DMS list
+            dmList.innerHTML = '';
+            allOnlineUsers.filter(user => user.id !== currentUserId && user.username.toLowerCase().includes(lowerCaseSearch)).forEach(user => {
+                const dmListItem = document.createElement('li');
+                dmListItem.dataset.userId = user.id;
+                dmListItem.addEventListener('click', () => startDM(user.id, user.username));
+                
+                const userPfp = document.createElement('div');
+                userPfp.classList.add('user-pfp');
+                userPfp.style.backgroundColor = stringToColor(user.username);
+                userPfp.textContent = user.username.charAt(0).toUpperCase();
+
+                const usernameSpan = document.createElement('span');
+                usernameSpan.classList.add('username');
+                usernameSpan.textContent = user.username;
+                
+                dmListItem.appendChild(userPfp);
+                dmListItem.appendChild(usernameSpan);
+                dmList.appendChild(dmListItem);
+
+                // Add active class if this is the current DM channel
+                const dmId = [currentUserId, user.id].sort().join('_');
+                if (currentChannel === dmId) {
+                    dmListItem.classList.add('active');
+                }
+            });
+        }
+        
+        // Event listener for the sidebar search bar
+        sidebarSearchInput.addEventListener('input', (e) => {
+            updateSidebarLists(e.target.value);
+        });
+
+        // This function handles the logic for switching between channels and DMs
+        function switchChannel(channelId, channelName = '# general', dmRecipientName = null) {
+            if (messagesListener) messagesListener(); // Unsubscribe previous message listener
+            
+            currentChannel = channelId;
+            chatWindow.innerHTML = ''; // Clear chat window
+            
+            // Remove active class from all channel/user list items
+            document.querySelectorAll('.channel-list li, .dm-list li').forEach(li => li.classList.remove('active'));
+
+            if (channelId === 'general') {
+                generalChannel.classList.add('active');
+                currentChannelName.textContent = '# general';
+                messageInput.placeholder = 'Message #general';
+            } else {
+                // Find the user list item with the recipient's ID and mark it as active
+                const dmRecipientId = channelId.split('_').filter(id => id !== currentUserId)[0];
+                const userListItem = dmList.querySelector(`[data-user-id="${dmRecipientId}"]`);
+                if (userListItem) userListItem.classList.add('active');
+                currentChannelName.textContent = `@ ${dmRecipientName}`;
+                messageInput.placeholder = `Message @${dmRecipientName}`;
+            }
+            
+            listenForMessages(channelId);
+        }
+        
+        // This function generates a unique DM channel ID and switches to it
+        function startDM(userId, username) {
+            // Create a unique channel ID by sorting the two user IDs and joining them
+            const dmId = [currentUserId, userId].sort().join('_');
+            // Switch to the new DM channel, passing the recipient's name for the UI
+            switchChannel(dmId, null, username);
+        }
+
+        function listenForMessages(channelId) {
+            const qMessages = query(collection(db, `artifacts/${appId}/public/data/messages`), where('channelId', '==', channelId));
+            messagesListener = onSnapshot(qMessages, snapshot => {
+                const messages = [];
+                snapshot.forEach(doc => {
+                    messages.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                messages.sort((a, b) => a.createdAt - b.createdAt);
+
+                chatWindow.innerHTML = '';
+                messages.forEach(message => {
+                    displayMessage(message);
+                });
+                
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            }, (error) => {
+                console.error("Error in snapshot listener:", error);
+                console.error("A Firestore index may be missing. Check the developer console for a link to create the required index for this query.");
+            });
+        }
+        
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = messageInput.value.trim();
+            if (text === '' || !currentUserId) return;
+            
+            // Build the message data
+            const messageData = {
+                text: text,
+                createdAt: serverTimestamp(),
+                senderId: currentUserId,
+                senderName: currentUserName,
+                channelId: currentChannel
+            };
+
+            // Add reply information if it exists
+            if (replyingTo.messageId) {
+                messageData.replyToMessageId = replyingTo.messageId;
+                messageData.replyToSenderName = replyingTo.senderName;
+                messageData.replyToSenderId = replyingTo.replyToSenderId; // Store the ID of the person being replied to
+                resetReplyState();
+            }
+            
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/messages`), messageData);
+            
+                messageInput.value = '';
+            } catch (error) {
+                console.error("Error sending message:", error);
+            }
+        });
+
+        cancelReplyBtn.addEventListener('click', () => {
+            resetReplyState();
+        });
+
+        function resetReplyState() {
+            replyingTo = { messageId: null, senderName: null, replyToSenderId: null };
+            replyStatus.style.display = 'none';
+            messageInput.placeholder = `Message #${currentChannel}`;
+        }
+        
+        // New function to create the profile picture element
+        function createProfilePicture(username, size = 'large') {
+            const initial = username.charAt(0).toUpperCase();
+            const color = stringToColor(username);
+            const profilePicElement = document.createElement('div');
+            profilePicElement.classList.add('profile-picture');
+            if (size === 'small') {
+                profilePicElement.classList.remove('profile-picture');
+                profilePicElement.classList.add('user-pfp');
+            }
+            profilePicElement.style.backgroundColor = color;
+            profilePicElement.textContent = initial;
+            return profilePicElement;
+        }
+
+        // Updated displayMessage function to include the reply feature
+        function displayMessage(message) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('message-wrapper');
+
+            const profilePicElement = createProfilePicture(message.senderName);
+            messageWrapper.appendChild(profilePicElement);
+
+            const messageContentContainer = document.createElement('div');
+            messageContentContainer.classList.add('message');
+
+            // Add the highlight class if the message is a reply to the current user
+            if (message.replyToMessageId && message.replyToSenderId === currentUserId) {
+                messageContentContainer.classList.add('highlight-for-me');
+            }
+
+            // If it's a reply, add the reply reference
+            if (message.replyToMessageId) {
+                const replyReference = document.createElement('div');
+                replyReference.classList.add('reply-reference');
+                replyReference.innerHTML = `
+                    <i class="fa-solid fa-reply reply-icon"></i>
+                    Replying to: <span class="reply-to-name">${message.replyToSenderName}</span>
+                `;
+                messageContentContainer.appendChild(replyReference);
+            }
+
+            const color = stringToColor(message.senderName);
+            messageContentContainer.innerHTML += `
+                <div class="user-info" style="color: ${color};">${message.senderName}</div>
+                <div class="content">${message.text}</div>
+            `;
+            messageWrapper.appendChild(messageContentContainer);
+
+            // Add the reply button with new styling
+            const replyButton = document.createElement('button');
+            replyButton.classList.add('reply-btn');
+            replyButton.innerHTML = `Reply <i class="fa-solid fa-reply"></i>`; // Now includes text and icon
+            replyButton.setAttribute('title', `Reply to ${message.senderName}`);
+            replyButton.addEventListener('click', () => {
+                replyingTo.messageId = message.id;
+                replyingTo.senderName = message.senderName;
+                replyingTo.replyToSenderId = message.senderId; // Store the ID of the person being replied to
+                replyToNameSpan.textContent = message.senderName;
+                replyStatus.style.display = 'flex';
+                messageInput.placeholder = `Replying to @${message.senderName}...`;
+                messageInput.focus();
+            });
+            messageWrapper.appendChild(replyButton);
+
+
+            chatWindow.appendChild(messageWrapper);
+        }
+        
+        // --- Emoji Picker Logic ---
+        emojiPickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevents the document click listener from firing immediately
+            emojiPicker.style.display = emojiPicker.style.display === 'flex' ? 'none' : 'flex';
+            emojiSearchInput.focus(); // Focus the search bar when the picker opens
+        });
+        
+        // Populate the emoji picker with buttons
+        function createEmojiButtons(filteredEmojis) {
+            emojiGrid.innerHTML = '';
+            filteredEmojis.forEach(emojiObj => {
+                const emojiButton = document.createElement('button');
+                emojiButton.textContent = emojiObj.emoji;
+                emojiButton.addEventListener('click', () => {
+                    messageInput.value += emojiObj.emoji;
+                    messageInput.focus();
+                    emojiPicker.style.display = 'none'; // Close picker after selection
+                });
+                emojiGrid.appendChild(emojiButton);
+            });
+        }
+
+        // Add event listener for the emoji search bar
+        emojiSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredEmojis = emojis.filter(emojiObj => {
+                // Check if any keyword includes the search term
+                return emojiObj.keywords.some(keyword => keyword.includes(searchTerm));
+            });
+            createEmojiButtons(filteredEmojis);
+        });
+        
+        // Close the emoji picker if a click occurs outside of it
+        document.addEventListener('click', (e) => {
+            if (!emojiPicker.contains(e.target) && e.target !== emojiPickerBtn) {
+                emojiPicker.style.display = 'none';
+            }
+        });
+
+        // Initial call to create emoji buttons with the full list
+        createEmojiButtons(emojis);
+    </script>
+</body>
+</html>
+�
